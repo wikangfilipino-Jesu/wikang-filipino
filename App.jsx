@@ -1,4 +1,6 @@
 import { useState, useEffect } from "react";
+import { fetchDictionaryWords, fetchLitWords, fetchPhrases, fetchPilipinasEntries } from "./supabase.js";
+import { fetchDictionaryWords, fetchLitWords, fetchPhrases, fetchPilipinasEntries } from "./supabase.js";
 
 const TEAL="#20B28C",GOLD="#FCD116",GOLD_DARK="#A07C00",AMBER="#CD853F",AMBER_LIGHT="#E8A85A",BROWN="#6B3510",BROWN2="#4A2208",NAVY="#0D1F3C",NAVY2="#162840",NAVY_LIGHT="#1E2E50",CREAM="#FFFBF3",DARK="#1A1006",MID="#6B4A2A",LIGHT_BORDER="#EDE0CC";
 const LANG_CONFIG={en:{label:"English",flag:"🇺🇸"},es:{label:"Español",flag:"🇪🇸"},de:{label:"Deutsch",flag:"🇩🇪"}};
@@ -58,7 +60,7 @@ const VALUES=[
 const SP_MARKS=["feliz","triste","amor","gracias","hola","como","hambriento","cuídate","cuidate","querido","alegre"];
 const DE_MARKS=["glücklich","glucklich","traurig","liebe","danke","hallo","hungrig","aufpassen","fröhlich","einsam"];
 function detectLang(q){const ql=q.toLowerCase();if(SP_MARKS.some(m=>ql.includes(m)))return"es";if(DE_MARKS.some(m=>ql.includes(m)))return"de";return"en";}
-function searchDict(q){const ql=q.toLowerCase().trim();if(!ql)return[];return DICT_WORDS.filter(w=>w.tagalog.toLowerCase().includes(ql)||w.alternatives.some(a=>a.toLowerCase().includes(ql))||w.searchTerms.some(t=>t.toLowerCase().includes(ql))||w.definition.toLowerCase().includes(ql));}
+function searchDict(q,wordList){const ql=q.toLowerCase().trim();if(!ql)return[];return (wordList||DICT_WORDS).filter(w=>w.tagalog.toLowerCase().includes(ql)||w.alternatives.some(a=>a.toLowerCase().includes(ql))||w.searchTerms.some(t=>t.toLowerCase().includes(ql))||w.definition.toLowerCase().includes(ql));}
 
 function Nav({current,navigate}){
   const[hov,setHov]=useState(null);
@@ -73,7 +75,7 @@ function Nav({current,navigate}){
   );
 }
 
-function HomePage({navigate}){
+function HomePage({navigate,litWords}){
   const[q,setQ]=useState(""); const[hovS,setHovS]=useState(null);
   const sections=[
     {id:"dictionary",title:"Dictionary",tagalog:"Diksyonaryo",description:"Search thousands of Tagalog words with translations in English, Spanish, and German.",color:"#20B28C",bg:"#EAF7F3",icon:"📖",entries:"2,400+ words"},
@@ -108,7 +110,7 @@ function HomePage({navigate}){
             <p style={{fontFamily:"'Nunito', sans-serif",fontSize:"13px",color:TEAL,marginBottom:"12px"}}>/ gi · gil / · Walang katumbas · No direct translation</p>
             <p style={{fontFamily:"'Nunito', sans-serif",fontSize:"15px",color:"rgba(255,255,255,0.8)",lineHeight:1.6,maxWidth:"480px"}}>The overwhelming urge to squeeze or pinch something unbearably cute — like a baby, a puppy, or your partner's cheeks. 🤌</p>
           </div>
-          <button onClick={()=>navigate("lost",{word:LIT_WORDS[0]})} style={{background:TEAL,color:"white",border:"none",borderRadius:"100px",padding:"14px 28px",fontFamily:"'Nunito', sans-serif",fontWeight:700,fontSize:"14px",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>Basahin pa → Learn more</button>
+          <button onClick={()=>navigate("lost",{word:(litWords||LIT_WORDS)[0]})} style={{background:TEAL,color:"white",border:"none",borderRadius:"100px",padding:"14px 28px",fontFamily:"'Nunito', sans-serif",fontWeight:700,fontSize:"14px",cursor:"pointer",whiteSpace:"nowrap",flexShrink:0}}>Basahin pa → Learn more</button>
         </div>
       </section>
       <section style={{padding:"48px 40px",maxWidth:"1100px",margin:"0 auto"}}>
@@ -155,16 +157,16 @@ function CultureCard({color,label,text}){
   );
 }
 
-function DictionaryPage({navigate,initialQuery="",initialWord=null}){
+function DictionaryPage({navigate,initialQuery="",initialWord=null,words}){
   const[q,setQ]=useState(initialQuery);
   const[results,setResults]=useState(initialQuery?searchDict(initialQuery):[]);
   const[sel,setSel]=useState(initialWord);
   const[tab,setTab]=useState("en");
   const[hov,setHov]=useState(null);
   const[audio,setAudio]=useState(false);
-  function doSearch(v){setQ(v);setSel(null);setResults(v.trim()?searchDict(v):[]);}
+  function doSearch(v){setQ(v);setSel(null);setResults(v.trim()?searchDict(v,words||DICT_WORDS):[]);}
   function pick(w){const tl=w.tagalog.toLowerCase().includes(q.toLowerCase())||w.alternatives.some(a=>a.toLowerCase().includes(q.toLowerCase()));setTab(tl?"en":detectLang(q));setSel(w);window.scrollTo({top:0,behavior:"smooth"});}
-  const FEAT=DICT_WORDS.slice(0,5);
+  const FEAT=(words||DICT_WORDS).slice(0,5);
   return(
     <div style={{fontFamily:"'Nunito', sans-serif",background:CREAM,minHeight:"100vh",color:DARK}}>
       <Nav current="dictionary" navigate={navigate}/>
@@ -200,12 +202,13 @@ function DictionaryPage({navigate,initialQuery="",initialWord=null}){
   );
 }
 
-function LostInTranslationPage({navigate,initialWord=null}){
+function LostInTranslationPage({navigate,initialWord=null,words}){
   const[sel,setSel]=useState(initialWord);
   const[tab,setTab]=useState("en");
   const[hov,setHov]=useState(null);
   const[cat,setCat]=useState("All");
-  const filtered=cat==="All"?LIT_WORDS:LIT_WORDS.filter(w=>w.category===cat);
+  const allLit=words||LIT_WORDS;
+  const filtered=cat==="All"?allLit:allLit.filter(w=>w.category===cat);
   function pick(w){setSel(w);setTab("en");window.scrollTo({top:0,behavior:"smooth"});}
   return(
     <div style={{fontFamily:"'Nunito', sans-serif",background:CREAM,minHeight:"100vh",color:DARK}}>
@@ -243,12 +246,13 @@ function LostInTranslationPage({navigate,initialWord=null}){
   );
 }
 
-function Tagalog101Page({navigate}){
+function Tagalog101Page({navigate,phrases:phrasesProp}){
   const[sel,setSel]=useState(null);
   const[tab,setTab]=useState("en");
   const[hov,setHov]=useState(null);
   const[theme,setTheme]=useState("All");
-  const filtered=theme==="All"?PHRASES:PHRASES.filter(p=>p.theme===theme);
+  const allPhrases=phrasesProp||PHRASES;
+  const filtered=theme==="All"?allPhrases:allPhrases.filter(p=>p.theme===theme);
   function pick(p){setSel(p);setTab("en");window.scrollTo({top:0,behavior:"smooth"});}
   return(
     <div style={{fontFamily:"'Nunito', sans-serif",background:CREAM,minHeight:"100vh",color:DARK}}>
@@ -288,12 +292,13 @@ function Tagalog101Page({navigate}){
   );
 }
 
-function PilipinasPage({navigate}){
+function PilipinasPage({navigate,entries}){
   const[sel,setSel]=useState(null);
   const[tab,setTab]=useState("en");
   const[hov,setHov]=useState(null);
   const[cat,setCat]=useState("All");
-  const filtered=cat==="All"?PIL_ENTRIES:PIL_ENTRIES.filter(e=>e.category===cat);
+  const allEntries=entries||PIL_ENTRIES;
+  const filtered=cat==="All"?allEntries:allEntries.filter(e=>e.category===cat);
   function pick(e){setSel(e);setTab("en");window.scrollTo({top:0,behavior:"smooth"});}
   return(
     <div style={{fontFamily:"'Nunito', sans-serif",background:CREAM,minHeight:"100vh",color:DARK}}>
@@ -401,15 +406,40 @@ function AboutPage({navigate}){
 export default function WikangFilipinoApp(){
   const[page,setPage]=useState("home");
   const[params,setParams]=useState({});
-  useEffect(()=>{const l=document.createElement("link");l.href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Nunito:wght@300;400;500;600;700&display=swap";l.rel="stylesheet";document.head.appendChild(l);return()=>document.head.removeChild(l);},[]);
+  const[dbWords,setDbWords]=useState(null);
+  const[dbLit,setDbLit]=useState(null);
+  const[dbPhrases,setDbPhrases]=useState(null);
+  const[dbPilipinas,setDbPilipinas]=useState(null);
+
+  useEffect(()=>{
+    const l=document.createElement("link");
+    l.href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Nunito:wght@300;400;500;600;700&display=swap";
+    l.rel="stylesheet";
+    document.head.appendChild(l);
+    Promise.all([fetchDictionaryWords(),fetchLitWords(),fetchPhrases(),fetchPilipinasEntries()])
+      .then(([words,lit,phrases,pilipinas])=>{
+        if(words)setDbWords(words);
+        if(lit)setDbLit(lit);
+        if(phrases)setDbPhrases(phrases);
+        if(pilipinas)setDbPilipinas(pilipinas);
+      }).catch(()=>{});
+    return()=>document.head.removeChild(l);
+  },[]);
+
   function navigate(p,ps={}){setPage(p);setParams(ps);window.scrollTo({top:0,behavior:"smooth"});}
+
+  const activeWords=dbWords||DICT_WORDS;
+  const activeLit=dbLit||LIT_WORDS;
+  const activePhrases=dbPhrases||PHRASES;
+  const activePilipinas=dbPilipinas||PIL_ENTRIES;
+
   return(
     <div>
-      {page==="home"&&<HomePage navigate={navigate}/>}
-      {page==="dictionary"&&<DictionaryPage navigate={navigate} initialQuery={params.query||""} initialWord={params.word||null}/>}
-      {page==="lost"&&<LostInTranslationPage navigate={navigate} initialWord={params.word||null}/>}
-      {page==="tagalog101"&&<Tagalog101Page navigate={navigate}/>}
-      {page==="pilipinas"&&<PilipinasPage navigate={navigate}/>}
+      {page==="home"&&<HomePage navigate={navigate} litWords={activeLit}/>}
+      {page==="dictionary"&&<DictionaryPage navigate={navigate} initialQuery={params.query||""} initialWord={params.word||null} words={activeWords}/>}
+      {page==="lost"&&<LostInTranslationPage navigate={navigate} initialWord={params.word||null} words={activeLit}/>}
+      {page==="tagalog101"&&<Tagalog101Page navigate={navigate} phrases={activePhrases}/>}
+      {page==="pilipinas"&&<PilipinasPage navigate={navigate} entries={activePilipinas}/>}
       {page==="about"&&<AboutPage navigate={navigate}/>}
     </div>
   );
