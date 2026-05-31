@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { fetchDictionaryWords, fetchLitWords, fetchPhrases, fetchPilipinasEntries } from "./supabase.js";
-import { fetchDictionaryWords, fetchLitWords, fetchPhrases, fetchPilipinasEntries } from "./supabase.js";
 
 const TEAL="#20B28C",GOLD="#FCD116",GOLD_DARK="#A07C00",AMBER="#CD853F",AMBER_LIGHT="#E8A85A",BROWN="#6B3510",BROWN2="#4A2208",NAVY="#0D1F3C",NAVY2="#162840",NAVY_LIGHT="#1E2E50",CREAM="#FFFBF3",DARK="#1A1006",MID="#6B4A2A",LIGHT_BORDER="#EDE0CC";
 const LANG_CONFIG={en:{label:"English",flag:"🇺🇸"},es:{label:"Español",flag:"🇪🇸"},de:{label:"Deutsch",flag:"🇩🇪"}};
