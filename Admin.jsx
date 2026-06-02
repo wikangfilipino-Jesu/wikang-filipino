@@ -81,14 +81,32 @@ function emptyDict() {
 
 function DictForm({ entry, onSave, onCancel, saving }) {
   const [f, setF] = useState(entry || emptyDict());
+  const [filling, setFilling] = useState(false);
   const set = k => v => setF(p=>({...p,[k]:v}));
   async function handleSave() {
     const data = { ...f, alternatives: f.alternatives.split(",").map(s=>s.trim()).filter(Boolean), searchTerms: f.searchTerms.split(",").map(s=>s.trim()).filter(Boolean) };
     await onSave(data, entry?.id);
   }
+  async function autoFill() {
+    if (!f.tagalog.trim()) { alert("Please enter the Tagalog word first."); return; }
+    setFilling(true);
+    try {
+      const res = await fetch('/api/autofill', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ word:f.tagalog, section:'dictionary' }) });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setF(p=>({ ...p, alternatives:Array.isArray(data.alternatives)?data.alternatives.join(', '):(data.alternatives||p.alternatives), pronunciation:data.pronunciation||p.pronunciation, partOfSpeech:data.partOfSpeech||p.partOfSpeech, definition:data.definition||p.definition, translation_en:data.translation_en||p.translation_en, example_tl_en:data.example_tl_en||p.example_tl_en, example_tr_en:data.example_tr_en||p.example_tr_en, translation_es:data.translation_es||p.translation_es, example_tl_es:data.example_tl_es||p.example_tl_es, example_tr_es:data.example_tr_es||p.example_tr_es, translation_de:data.translation_de||p.translation_de, example_tl_de:data.example_tl_de||p.example_tl_de, example_tr_de:data.example_tr_de||p.example_tr_de, culturalNote:data.culturalNote||p.culturalNote, searchTerms:Array.isArray(data.searchTerms)?data.searchTerms.join(', '):(data.searchTerms||p.searchTerms) }));
+    } catch(e) { alert('Auto-fill failed: ' + e.message); }
+    setFilling(false);
+  }
   return (
     <div style={{ background:"white", borderRadius:"16px", padding:"24px", border:`1px solid ${BORDER}`, marginTop:"16px" }}>
-      <h3 style={{ fontFamily:"'Baloo 2',cursive", fontSize:"18px", color:DARK, marginBottom:"16px" }}>{entry?"Edit Word":"Add New Word"}</h3>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"16px" }}>
+        <h3 style={{ fontFamily:"'Baloo 2',cursive", fontSize:"18px", color:DARK }}>{entry?"Edit Word":"Add New Word"}</h3>
+        <button onClick={autoFill} disabled={filling} style={{ background:"linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color:"white", border:"none", borderRadius:"100px", padding:"8px 20px", fontFamily:"'Nunito',sans-serif", fontSize:"13px", fontWeight:700, cursor:filling?"not-allowed":"pointer", opacity:filling?0.7:1, display:"flex", alignItems:"center", gap:"6px" }}>
+          {filling ? "⏳ Generating..." : "✨ Auto-fill with AI"}
+        </button>
+      </div>
+      {filling && <div style={{ background:"#F0EDFF", borderRadius:"10px", padding:"10px 16px", marginBottom:"16px", fontSize:"13px", color:"#5B4BA8", fontWeight:600 }}>⏳ Claude is generating content for "{f.tagalog}"... this takes about 5 seconds.</div>}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 16px" }}>
         <F label="Tagalog Word *" value={f.tagalog} onChange={set("tagalog")} placeholder="e.g. Gigil"/>
         <F label="Pronunciation" value={f.pronunciation} onChange={set("pronunciation")} placeholder="e.g. gi · gil"/>
@@ -139,10 +157,28 @@ function emptyLit() {
 
 function LitForm({ entry, onSave, onCancel, saving }) {
   const [f, setF] = useState(entry || emptyLit());
+  const [filling, setFilling] = useState(false);
   const set = k => v => setF(p=>({...p,[k]:v}));
+  async function autoFill() {
+    if (!f.word.trim()) { alert("Please enter the word first."); return; }
+    setFilling(true);
+    try {
+      const res = await fetch('/api/autofill', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ word:f.word, section:'lit' }) });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setF(p=>({ ...p, pronunciation:data.pronunciation||p.pronunciation, teaser:data.teaser||p.teaser, category:data.category||p.category, concept:data.concept||p.concept, closest_en:data.closest_en||p.closest_en, explanation_en:data.explanation_en||p.explanation_en, example_tl_en:data.example_tl_en||p.example_tl_en, example_tr_en:data.example_tr_en||p.example_tr_en, closest_es:data.closest_es||p.closest_es, explanation_es:data.explanation_es||p.explanation_es, example_tl_es:data.example_tl_es||p.example_tl_es, example_tr_es:data.example_tr_es||p.example_tr_es, closest_de:data.closest_de||p.closest_de, explanation_de:data.explanation_de||p.explanation_de, example_tl_de:data.example_tl_de||p.example_tl_de, example_tr_de:data.example_tr_de||p.example_tr_de, culturalNote:data.culturalNote||p.culturalNote }));
+    } catch(e) { alert('Auto-fill failed: ' + e.message); }
+    setFilling(false);
+  }
   return (
     <div style={{ background:"white", borderRadius:"16px", padding:"24px", border:`1px solid ${BORDER}`, marginTop:"16px" }}>
-      <h3 style={{ fontFamily:"'Baloo 2',cursive", fontSize:"18px", color:DARK, marginBottom:"16px" }}>{entry?"Edit Word":"Add New Word"}</h3>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"16px" }}>
+        <h3 style={{ fontFamily:"'Baloo 2',cursive", fontSize:"18px", color:DARK }}>{entry?"Edit Word":"Add New Word"}</h3>
+        <button onClick={autoFill} disabled={filling} style={{ background:"linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color:"white", border:"none", borderRadius:"100px", padding:"8px 20px", fontFamily:"'Nunito',sans-serif", fontSize:"13px", fontWeight:700, cursor:filling?"not-allowed":"pointer", opacity:filling?0.7:1, display:"flex", alignItems:"center", gap:"6px" }}>
+          {filling ? "⏳ Generating..." : "✨ Auto-fill with AI"}
+        </button>
+      </div>
+      {filling && <div style={{ background:"#F0EDFF", borderRadius:"10px", padding:"10px 16px", marginBottom:"16px", fontSize:"13px", color:"#5B4BA8", fontWeight:600 }}>⏳ Claude is generating content for "{f.word}"... this takes about 5 seconds.</div>}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 16px" }}>
         <F label="Word *" value={f.word} onChange={set("word")} placeholder="e.g. Gigil"/>
         <F label="Pronunciation" value={f.pronunciation} onChange={set("pronunciation")} placeholder="e.g. gi · gil"/>
@@ -195,10 +231,28 @@ function emptyPhrase() {
 
 function PhraseForm({ entry, onSave, onCancel, saving }) {
   const [f, setF] = useState(entry || emptyPhrase());
+  const [filling, setFilling] = useState(false);
   const set = k => v => setF(p=>({...p,[k]:v}));
+  async function autoFill() {
+    if (!f.phrase.trim()) { alert("Please enter the phrase first."); return; }
+    setFilling(true);
+    try {
+      const res = await fetch('/api/autofill', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ word:f.phrase, section:'phrases' }) });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setF(p=>({ ...p, pronunciation:data.pronunciation||p.pronunciation, theme:data.theme||p.theme, tagline:data.tagline||p.tagline, howToUse:data.howToUse||p.howToUse, translation_en:data.translation_en||p.translation_en, example_tl_en:data.example_tl_en||p.example_tl_en, example_tr_en:data.example_tr_en||p.example_tr_en, translation_es:data.translation_es||p.translation_es, example_tl_es:data.example_tl_es||p.example_tl_es, example_tr_es:data.example_tr_es||p.example_tr_es, translation_de:data.translation_de||p.translation_de, example_tl_de:data.example_tl_de||p.example_tl_de, example_tr_de:data.example_tr_de||p.example_tr_de, culturalTip:data.culturalTip||p.culturalTip }));
+    } catch(e) { alert('Auto-fill failed: ' + e.message); }
+    setFilling(false);
+  }
   return (
     <div style={{ background:"white", borderRadius:"16px", padding:"24px", border:`1px solid ${BORDER}`, marginTop:"16px" }}>
-      <h3 style={{ fontFamily:"'Baloo 2',cursive", fontSize:"18px", color:DARK, marginBottom:"16px" }}>{entry?"Edit Phrase":"Add New Phrase"}</h3>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"16px" }}>
+        <h3 style={{ fontFamily:"'Baloo 2',cursive", fontSize:"18px", color:DARK }}>{entry?"Edit Phrase":"Add New Phrase"}</h3>
+        <button onClick={autoFill} disabled={filling} style={{ background:"linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color:"white", border:"none", borderRadius:"100px", padding:"8px 20px", fontFamily:"'Nunito',sans-serif", fontSize:"13px", fontWeight:700, cursor:filling?"not-allowed":"pointer", opacity:filling?0.7:1, display:"flex", alignItems:"center", gap:"6px" }}>
+          {filling ? "⏳ Generating..." : "✨ Auto-fill with AI"}
+        </button>
+      </div>
+      {filling && <div style={{ background:"#F0EDFF", borderRadius:"10px", padding:"10px 16px", marginBottom:"16px", fontSize:"13px", color:"#5B4BA8", fontWeight:600 }}>⏳ Claude is generating content for "{f.phrase}"... this takes about 5 seconds.</div>}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 16px" }}>
         <F label="Phrase *" value={f.phrase} onChange={set("phrase")} placeholder="e.g. Tara na!"/>
         <F label="Pronunciation" value={f.pronunciation} onChange={set("pronunciation")} placeholder="e.g. ta · ra · na"/>
@@ -248,7 +302,19 @@ function emptyPil() {
 function PilForm({ entry, onSave, onCancel, saving }) {
   const init = entry ? { ...entry, imageUrl: entry.image || "" } : emptyPil();
   const [f, setF] = useState(init);
+  const [filling, setFilling] = useState(false);
   const set = k => v => setF(p=>({...p,[k]:v}));
+  async function autoFill() {
+    if (!f.title.trim()) { alert("Please enter the title first."); return; }
+    setFilling(true);
+    try {
+      const res = await fetch('/api/autofill', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ word:f.title, section:'pilipinas' }) });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setF(p=>({ ...p, subtitle:data.subtitle||p.subtitle, category:data.category||p.category, description:data.description||p.description, facts:data.facts||p.facts, vocabulary:data.vocabulary||p.vocabulary, culturalNote:data.culturalNote||p.culturalNote }));
+    } catch(e) { alert('Auto-fill failed: ' + e.message); }
+    setFilling(false);
+  }
 
   function updateFact(i, k, v) { const a=[...f.facts]; a[i]={...a[i],[k]:v}; setF(p=>({...p,facts:a})); }
   function addFact() { setF(p=>({...p,facts:[...p.facts,{tl:"",en:"",es:"",de:""}]})); }
@@ -260,7 +326,13 @@ function PilForm({ entry, onSave, onCancel, saving }) {
 
   return (
     <div style={{ background:"white", borderRadius:"16px", padding:"24px", border:`1px solid ${BORDER}`, marginTop:"16px" }}>
-      <h3 style={{ fontFamily:"'Baloo 2',cursive", fontSize:"18px", color:DARK, marginBottom:"16px" }}>{entry?"Edit Entry":"Add New Entry"}</h3>
+      <div style={{ display:"flex", alignItems:"center", justifyContent:"space-between", marginBottom:"16px" }}>
+        <h3 style={{ fontFamily:"'Baloo 2',cursive", fontSize:"18px", color:DARK }}>{entry?"Edit Entry":"Add New Entry"}</h3>
+        <button onClick={autoFill} disabled={filling} style={{ background:"linear-gradient(135deg, #667eea 0%, #764ba2 100%)", color:"white", border:"none", borderRadius:"100px", padding:"8px 20px", fontFamily:"'Nunito',sans-serif", fontSize:"13px", fontWeight:700, cursor:filling?"not-allowed":"pointer", opacity:filling?0.7:1, display:"flex", alignItems:"center", gap:"6px" }}>
+          {filling ? "⏳ Generating..." : "✨ Auto-fill with AI"}
+        </button>
+      </div>
+      {filling && <div style={{ background:"#F0EDFF", borderRadius:"10px", padding:"10px 16px", marginBottom:"16px", fontSize:"13px", color:"#5B4BA8", fontWeight:600 }}>⏳ Claude is generating content for "{f.title}"... this takes about 5 seconds.</div>}
       <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 16px" }}>
         <F label="Title *" value={f.title} onChange={set("title")} placeholder="e.g. Adobo"/>
         <F label="Subtitle" value={f.subtitle} onChange={set("subtitle")} placeholder="e.g. Pambansang Ulam · National Dish"/>
