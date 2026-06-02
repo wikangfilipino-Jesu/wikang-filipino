@@ -97,24 +97,24 @@ function DictForm({ entry, onSave, onCancel, saving }) {
       </div>
       <F label="Definition *" value={f.definition} onChange={set("definition")} multi placeholder="What does this word mean?"/>
       <Section title="🇺🇸 English">
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"0 12px" }}>
-          <F label="Translation" value={f.translation_en} onChange={set("translation_en")} placeholder="e.g. Cute aggression"/>
-          <F label="Example (Tagalog)" value={f.example_tl_en} onChange={set("example_tl_en")} placeholder="e.g. Gigil na ako!"/>
-          <F label="Example (English)" value={f.example_tr_en} onChange={set("example_tr_en")} placeholder="e.g. I can't handle it!"/>
+        <F label="Translation" value={f.translation_en} onChange={set("translation_en")} placeholder="e.g. Cute aggression"/>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 12px" }}>
+          <F label="Example sentence — Tagalog" value={f.example_tl_en} onChange={set("example_tl_en")} placeholder="e.g. Gigil na gigil ako sa kanya!"/>
+          <F label="Example sentence — English" value={f.example_tr_en} onChange={set("example_tr_en")} placeholder="e.g. I can't handle how cute!"/>
         </div>
       </Section>
       <Section title="🇪🇸 Español">
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"0 12px" }}>
-          <F label="Translation" value={f.translation_es} onChange={set("translation_es")} placeholder="e.g. Agresividad por ternura"/>
-          <F label="Example (Tagalog)" value={f.example_tl_es} onChange={set("example_tl_es")} placeholder="e.g. Gigil na ako!"/>
-          <F label="Example (Español)" value={f.example_tr_es} onChange={set("example_tr_es")} placeholder="e.g. ¡No puedo más!"/>
+        <F label="Translation" value={f.translation_es} onChange={set("translation_es")} placeholder="e.g. Sin equivalente directo"/>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 12px" }}>
+          <F label="Example sentence — Tagalog" value={f.example_tl_es} onChange={set("example_tl_es")} placeholder="e.g. Gigil na gigil ako sa kanya!"/>
+          <F label="Example sentence — Español" value={f.example_tr_es} onChange={set("example_tr_es")} placeholder="e.g. ¡Me muero de lo lindo!"/>
         </div>
       </Section>
       <Section title="🇩🇪 Deutsch">
-        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr 1fr", gap:"0 12px" }}>
-          <F label="Translation" value={f.translation_de} onChange={set("translation_de")} placeholder="e.g. Kein Äquivalent"/>
-          <F label="Example (Tagalog)" value={f.example_tl_de} onChange={set("example_tl_de")} placeholder="e.g. Gigil na ako!"/>
-          <F label="Example (Deutsch)" value={f.example_tr_de} onChange={set("example_tr_de")} placeholder="e.g. Ich kann nicht!"/>
+        <F label="Translation" value={f.translation_de} onChange={set("translation_de")} placeholder="e.g. Kein direktes Äquivalent"/>
+        <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 12px" }}>
+          <F label="Example sentence — Tagalog" value={f.example_tl_de} onChange={set("example_tl_de")} placeholder="e.g. Gigil na gigil ako sa kanya!"/>
+          <F label="Example sentence — Deutsch" value={f.example_tr_de} onChange={set("example_tr_de")} placeholder="e.g. Ich kann nicht aufhören!"/>
         </div>
       </Section>
       <F label="Cultural Note / Tala" value={f.culturalNote} onChange={set("culturalNote")} multi placeholder="Cultural context, real usage, interesting background..."/>
@@ -154,24 +154,24 @@ function LitForm({ entry, onSave, onCancel, saving }) {
         <F label="Closest Equivalent" value={f.closest_en} onChange={set("closest_en")} placeholder="e.g. No direct equivalent / Cute aggression"/>
         <F label="Why it doesn't translate" value={f.explanation_en} onChange={set("explanation_en")} multi placeholder="Explain why English can't capture this..."/>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 12px" }}>
-          <F label="Example (Tagalog)" value={f.example_tl_en} onChange={set("example_tl_en")} placeholder="e.g. Gigil na gigil ako!"/>
-          <F label="Example (English)" value={f.example_tr_en} onChange={set("example_tr_en")} placeholder="e.g. I can't handle how cute!"/>
+          <F label="Example sentence — Tagalog" value={f.example_tl_en} onChange={set("example_tl_en")} placeholder="e.g. Gigil na gigil ako sa kanya!"/>
+          <F label="Example sentence — English" value={f.example_tr_en} onChange={set("example_tr_en")} placeholder="e.g. I just can't handle how cute!"/>
         </div>
       </Section>
       <Section title="🇪🇸 Español">
         <F label="Closest Equivalent" value={f.closest_es} onChange={set("closest_es")} placeholder="e.g. Sin equivalente directo"/>
         <F label="Why it doesn't translate" value={f.explanation_es} onChange={set("explanation_es")} multi placeholder="Explica por qué el español no puede capturarlo..."/>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 12px" }}>
-          <F label="Example (Tagalog)" value={f.example_tl_es} onChange={set("example_tl_es")} placeholder="e.g. Gigil na gigil ako!"/>
-          <F label="Example (Español)" value={f.example_tr_es} onChange={set("example_tr_es")} placeholder="e.g. ¡No puedo más!"/>
+          <F label="Example sentence — Tagalog" value={f.example_tl_es} onChange={set("example_tl_es")} placeholder="e.g. Gigil na gigil ako sa kanya!"/>
+          <F label="Example sentence — Español" value={f.example_tr_es} onChange={set("example_tr_es")} placeholder="e.g. ¡Me muero de lo lindo que es!"/>
         </div>
       </Section>
       <Section title="🇩🇪 Deutsch">
         <F label="Closest Equivalent" value={f.closest_de} onChange={set("closest_de")} placeholder="e.g. Kein direktes Äquivalent"/>
         <F label="Why it doesn't translate" value={f.explanation_de} onChange={set("explanation_de")} multi placeholder="Erkläre, warum Deutsch das nicht erfassen kann..."/>
         <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"0 12px" }}>
-          <F label="Example (Tagalog)" value={f.example_tl_de} onChange={set("example_tl_de")} placeholder="e.g. Gigil na gigil ako!"/>
-          <F label="Example (Deutsch)" value={f.example_tr_de} onChange={set("example_tr_de")} placeholder="e.g. Ich kann nicht aufhören!"/>
+          <F label="Example sentence — Tagalog" value={f.example_tl_de} onChange={set("example_tl_de")} placeholder="e.g. Gigil na gigil ako sa kanya!"/>
+          <F label="Example sentence — Deutsch" value={f.example_tr_de} onChange={set("example_tr_de")} placeholder="e.g. Ich kann nicht aufhören!"/>
         </div>
       </Section>
       <F label="Cultural Note / Tala" value={f.culturalNote} onChange={set("culturalNote")} multi placeholder="Cultural context, interesting facts..."/>
