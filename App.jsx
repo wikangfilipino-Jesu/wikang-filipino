@@ -159,8 +159,15 @@ function CultureCard({color,label,text}){
 
 function DictionaryPage({navigate,initialQuery="",initialWord=null,words}){
   const[q,setQ]=useState(initialQuery);
-  const[results,setResults]=useState(initialQuery?searchDict(initialQuery):[]);
+  const[results,setResults]=useState(()=>initialQuery?searchDict(initialQuery,words):[]); 
   const[sel,setSel]=useState(initialWord);
+  
+  // Re-run search when words load from Supabase (they may not be ready on first render)
+  useEffect(()=>{
+    if(initialQuery&&words&&words.length>0){
+      setResults(searchDict(initialQuery,words));
+    }
+  },[words,initialQuery]);
   const[tab,setTab]=useState("en");
   const[hov,setHov]=useState(null);
   const[audio,setAudio]=useState(false);
