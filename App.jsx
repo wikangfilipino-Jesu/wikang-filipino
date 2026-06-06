@@ -65,10 +65,16 @@ function searchDict(q,wordList){
   if(!ql)return[];
   // Whole word boundary check — "fast" should not match "breakfast"
   const wordMatch=(text,term)=>{
-    try{
-      const escaped=term.replace(/[.*+?^${}()|[\]\]/g,"\$&");
-      return new RegExp("(?:^|[\s,/·])" + escaped + "(?:$|[\s,/·])", "i").test(text);
-    }catch(e){ return text.toLowerCase().includes(term); }
+    const t=text.toLowerCase();
+    const q=term.toLowerCase();
+    let i=t.indexOf(q);
+    while(i!==-1){
+      const before=i===0||" ,/.".includes(t[i-1]);
+      const after=i+q.length===t.length||" ,/.".includes(t[i+q.length]);
+      if(before&&after)return true;
+      i=t.indexOf(q,i+1);
+    }
+    return false;
   };
   const scored=[];
   for(const w of(wordList||DICT_WORDS)){
