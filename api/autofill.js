@@ -10,7 +10,8 @@ export default async function handler(req, res) {
 
   const prompts = {
     dictionary: `You are a Filipino language expert. Generate comprehensive dictionary content for the Tagalog word "${word}".
-Return ONLY a valid JSON object with no markdown formatting, no backticks, no explanation — just the raw JSON:
+Return ONLY a valid JSON object with no markdown formatting, no backticks, no explanation — just the raw JSON.
+IMPORTANT for searchTerms: only include direct translations and genuine synonyms. Never include opposite words or unrelated words.
 {
   "tagalog": "${word}",
   "alternatives": ["alternative1", "alternative2"],
