@@ -396,14 +396,22 @@ function PilForm({ entry, onSave, onCancel, saving }) {
 
 function EntryList({ entries, getName, onEdit, onDelete, onAdd, tabColor, addLabel }) {
   const [confirmId, setConfirmId] = useState(null);
+  const [search, setSearch] = useState("");
+  const filtered = search.trim() ? entries.filter(e => getName(e).toLowerCase().includes(search.toLowerCase())) : entries;
   return (
     <div>
-      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"16px" }}>
-        <p style={{ fontSize:"14px", color:MID, fontWeight:600 }}>{entries.length} {entries.length===1?"entry":"entries"}</p>
+      <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:"14px" }}>
+        <p style={{ fontSize:"14px", color:MID, fontWeight:600 }}>{filtered.length}{search&&filtered.length!==entries.length?` of ${entries.length}`:""} {entries.length===1?"entry":"entries"}</p>
         <Btn onClick={onAdd} color={tabColor}>+ {addLabel}</Btn>
       </div>
+      <div style={{ position:"relative", marginBottom:"16px" }}>
+        <span style={{ position:"absolute", left:"14px", top:"50%", transform:"translateY(-50%)", fontSize:"15px", pointerEvents:"none" }}>🔍</span>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search entries..." style={{ width:"100%", padding:"10px 14px 10px 40px", borderRadius:"100px", border:`1.5px solid ${BORDER}`, fontFamily:"'Nunito',sans-serif", fontSize:"14px", color:DARK, outline:"none", boxSizing:"border-box", background:"white" }}/>
+        {search && <button onClick={()=>setSearch("")} style={{ position:"absolute", right:"14px", top:"50%", transform:"translateY(-50%)", background:"none", border:"none", cursor:"pointer", fontSize:"18px", color:"#9B7A55", lineHeight:1 }}>×</button>}
+      </div>
+      {filtered.length===0&&search&&<div style={{ textAlign:"center", padding:"32px 0", color:MID, fontSize:"14px", fontWeight:600 }}>No entries found for "{search}" — safe to add it!</div>}
       <div style={{ display:"flex", flexDirection:"column", gap:"8px" }}>
-        {entries.map(e => (
+        {filtered.map(e => (
           <div key={e.id} style={{ background:"white", borderRadius:"12px", padding:"14px 18px", border:`1px solid ${BORDER}`, display:"flex", alignItems:"center", justifyContent:"space-between" }}>
             <span style={{ fontFamily:"'Baloo 2',cursive", fontSize:"16px", fontWeight:700, color:DARK }}>{getName(e)}</span>
             <div style={{ display:"flex", gap:"8px", alignItems:"center" }}>

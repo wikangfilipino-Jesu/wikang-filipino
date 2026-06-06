@@ -60,7 +60,36 @@ const VALUES=[
 const SP_MARKS=["feliz","triste","amor","gracias","hola","como","hambriento","cuídate","cuidate","querido","alegre"];
 const DE_MARKS=["glücklich","glucklich","traurig","liebe","danke","hallo","hungrig","aufpassen","fröhlich","einsam"];
 function detectLang(q){const ql=q.toLowerCase();if(SP_MARKS.some(m=>ql.includes(m)))return"es";if(DE_MARKS.some(m=>ql.includes(m)))return"de";return"en";}
-function searchDict(q,wordList){const ql=q.toLowerCase().trim();if(!ql)return[];return (wordList||DICT_WORDS).filter(w=>w.tagalog.toLowerCase().includes(ql)||w.alternatives.some(a=>a.toLowerCase().includes(ql))||w.searchTerms.some(t=>t.toLowerCase().includes(ql))||w.definition.toLowerCase().includes(ql));}
+function searchDict(q,wordList){
+  const ql=q.toLowerCase().trim();
+  if(!ql)return[];
+  const scored=[];
+  for(const w of(wordList||DICT_WORDS)){
+    let score=0;
+    const tl=w.tagalog.toLowerCase();
+    const alts=(w.alternatives||[]).map(a=>a.toLowerCase());
+    const en=(w.en?.translation||"").toLowerCase();
+    const es=(w.es?.translation||"").toLowerCase();
+    const de=(w.de?.translation||"").toLowerCase();
+    const def=(w.definition||"").toLowerCase();
+    const terms=(w.searchTerms||[]).map(t=>t.toLowerCase());
+    // Tagalog exact match — highest
+    if(tl===ql) score=5;
+    else if(tl.startsWith(ql)) score=4;
+    else if(tl.includes(ql)) score=3;
+    // Alternative match
+    else if(alts.some(a=>a===ql)) score=4;
+    else if(alts.some(a=>a.includes(ql))) score=3;
+    // Translation match — medium priority
+    else if(en.includes(ql)||es.includes(ql)||de.includes(ql)) score=2;
+    // Definition match
+    else if(def.includes(ql)) score=1;
+    // Search terms only — lowest (likely opposite or tangential)
+    else if(terms.some(t=>t===ql||t.includes(ql))) score=1;
+    if(score>0) scored.push({...w,_score:score});
+  }
+  return scored.sort((a,b)=>b._score-a._score);
+}
 
 function Nav({current,navigate}){
   const[hov,setHov]=useState(null);
@@ -201,7 +230,7 @@ function DictionaryPage({navigate,initialQuery="",initialWord=null,words}){
           <div style={{background:"white",borderRadius:"20px",border:`1px solid ${LIGHT_BORDER}`,overflow:"hidden",marginBottom:"16px"}}><LangTabs activeTab={tab} setActiveTab={setTab} gold={false}/><div style={{padding:"28px"}}><div style={{marginBottom:"20px"}}><span style={{fontSize:"11px",fontWeight:700,color:"#9B7A55",letterSpacing:"1.2px",textTransform:"uppercase"}}>Translation</span><p style={{fontFamily:"'Baloo 2', cursive",fontSize:"24px",fontWeight:700,color:DARK,marginTop:"4px"}}>{sel[tab].translation}</p></div><div style={{background:"#FFFBF3",borderRadius:"14px",padding:"20px",border:`1px solid ${LIGHT_BORDER}`}}><span style={{fontSize:"11px",fontWeight:700,color:"#9B7A55",letterSpacing:"1.2px",textTransform:"uppercase"}}>Halimbawa · Example sentence</span><p style={{fontFamily:"'Playfair Display', serif",fontSize:"18px",fontStyle:"italic",color:DARK,margin:"10px 0 6px"}}>"{sel[tab].example.tl}"</p><p style={{fontSize:"14px",color:MID,fontWeight:600}}>{sel[tab].example.tr}</p></div></div></div>
           <CultureCard color={NAVY} label="Cultural Note" text={sel.culturalNote}/>
         </div>)}
-        {!sel&&q&&results.length>0&&(<div><p style={{fontSize:"13px",color:"#9B7A55",marginBottom:"20px",fontWeight:600}}>{results.length} result{results.length!==1?"s":""} for "{q}"</p><div style={{display:"flex",flexDirection:"column",gap:"10px"}}>{results.map(w=>(<div key={w.id} onClick={()=>pick(w)} onMouseEnter={()=>setHov(w.id)} onMouseLeave={()=>setHov(null)} style={{background:hov===w.id?"#EAF7F3":"white",borderRadius:"16px",padding:"20px 24px",cursor:"pointer",border:`1px solid ${hov===w.id?"rgba(32,178,140,0.3)":LIGHT_BORDER}`,transition:"all 0.15s",display:"flex",alignItems:"center",justifyContent:"space-between",gap:"16px"}}><div style={{flex:1}}><div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"5px",flexWrap:"wrap"}}><span style={{fontFamily:"'Playfair Display', serif",fontSize:"22px",fontWeight:700,color:DARK}}>{w.tagalog}</span><span style={{fontSize:"12px",color:TEAL,fontWeight:600}}>/ {w.pronunciation} /</span><span style={{background:"#EAF7F3",color:TEAL,borderRadius:"100px",padding:"1px 10px",fontSize:"11px",fontWeight:700}}>{w.partOfSpeech}</span></div><p style={{fontSize:"13px",color:MID}}>🇺🇸 {w.en.translation} · 🇪🇸 {w.es.translation} · 🇩🇪 {w.de.translation}</p></div><span style={{color:TEAL,fontSize:"20px"}}>→</span></div>))}</div></div>)}
+        {!sel&&q&&results.length>0&&(<div><p style={{fontSize:"13px",color:"#9B7A55",marginBottom:"20px",fontWeight:600}}>{results.length} result{results.length!==1?"s":""} for "{q}"</p><div style={{display:"flex",flexDirection:"column",gap:"10px"}}>{results.map(w=>(<div key={w.id} onClick={()=>pick(w)} onMouseEnter={()=>setHov(w.id)} onMouseLeave={()=>setHov(null)} style={{background:hov===w.id?"#EAF7F3":"white",borderRadius:"16px",padding:"20px 24px",cursor:"pointer",border:`1px solid ${hov===w.id?"rgba(32,178,140,0.3)":LIGHT_BORDER}`,transition:"all 0.15s",display:"flex",alignItems:"center",justifyContent:"space-between",gap:"16px",opacity:w._score===1?0.85:1}}><div style={{flex:1}}><div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"5px",flexWrap:"wrap"}}><span style={{fontFamily:"'Playfair Display', serif",fontSize:"22px",fontWeight:700,color:DARK}}>{w.tagalog}</span><span style={{fontSize:"12px",color:TEAL,fontWeight:600}}>/ {w.pronunciation} /</span><span style={{background:"#EAF7F3",color:TEAL,borderRadius:"100px",padding:"1px 10px",fontSize:"11px",fontWeight:700}}>{w.partOfSpeech}</span>{w._score===1&&<span style={{background:"#FFF3E0",color:"#A07C00",borderRadius:"100px",padding:"1px 10px",fontSize:"11px",fontWeight:700,border:"1px solid rgba(160,124,0,0.2)"}}>Also related</span>}</div><p style={{fontSize:"13px",color:MID}}>🇺🇸 {w.en.translation} · 🇪🇸 {w.es.translation} · 🇩🇪 {w.de.translation}</p></div><span style={{color:TEAL,fontSize:"20px"}}>→</span></div>))}</div></div>)}
         {!sel&&q&&results.length===0&&(<div style={{textAlign:"center",padding:"72px 0"}}><span style={{fontSize:"44px",display:"block",marginBottom:"16px"}}>🤔</span><h3 style={{fontFamily:"'Baloo 2', cursive",fontSize:"24px",fontWeight:700,color:DARK,marginBottom:"8px"}}>Word not found yet</h3><p style={{fontSize:"15px",color:MID}}>We're always growing. Try a different spelling or check back soon.</p></div>)}
         {!sel&&!q&&(<div><h2 style={{fontFamily:"'Baloo 2', cursive",fontSize:"22px",fontWeight:700,color:DARK,marginBottom:"6px"}}>Mga Tampok na Salita · Featured Words</h2><p style={{fontSize:"14px",color:MID,marginBottom:"24px"}}>A few words to get you started.</p><div style={{display:"flex",flexDirection:"column",gap:"10px"}}>{FEAT.map(w=>(<div key={w.id} onClick={()=>{setQ(w.tagalog);pick(w);}} onMouseEnter={()=>setHov(w.id)} onMouseLeave={()=>setHov(null)} style={{background:hov===w.id?"#EAF7F3":"white",borderRadius:"16px",padding:"20px 24px",cursor:"pointer",border:`1px solid ${hov===w.id?"rgba(32,178,140,0.3)":LIGHT_BORDER}`,transition:"all 0.15s",display:"flex",alignItems:"center",justifyContent:"space-between"}}><div><div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"5px"}}><span style={{fontFamily:"'Playfair Display', serif",fontSize:"22px",fontWeight:700,color:DARK}}>{w.tagalog}</span><span style={{fontSize:"12px",color:TEAL,fontWeight:600}}>/ {w.pronunciation} /</span></div><p style={{fontSize:"13px",color:MID}}>{w.definition}</p></div><span style={{color:TEAL,fontSize:"20px"}}>→</span></div>))}</div></div>)}
       </main>
