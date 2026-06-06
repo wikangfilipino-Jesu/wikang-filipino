@@ -63,18 +63,21 @@ function detectLang(q){const ql=q.toLowerCase();if(SP_MARKS.some(m=>ql.includes(
 function searchDict(q,wordList){
   const ql=q.toLowerCase().trim();
   if(!ql)return[];
-  // Whole word boundary check — "fast" should not match "breakfast"
   const wordMatch=(text,term)=>{
     const t=text.toLowerCase();
-    const q=term.toLowerCase();
-    let i=t.indexOf(q);
+    let i=t.indexOf(term);
     while(i!==-1){
-      const before=i===0||" ,/.".includes(t[i-1]);
-      const after=i+q.length===t.length||" ,/.".includes(t[i+q.length]);
+      const before=i===0||" ,/.·".includes(t[i-1]);
+      const after=i+term.length===t.length||" ,/.·".includes(t[i+term.length]);
       if(before&&after)return true;
-      i=t.indexOf(q,i+1);
+      i=t.indexOf(term,i+1);
     }
     return false;
+  };
+  const transStartsWith=(w,q2)=>{
+    return (w.en?.translation||"").toLowerCase().startsWith(q2)||
+           (w.es?.translation||"").toLowerCase().startsWith(q2)||
+           (w.de?.translation||"").toLowerCase().startsWith(q2);
   };
   const scored=[];
   for(const w of(wordList||DICT_WORDS)){
@@ -86,26 +89,17 @@ function searchDict(q,wordList){
     const de=(w.de?.translation||"").toLowerCase();
     const def=(w.definition||"").toLowerCase();
     const terms=(w.searchTerms||[]).map(t=>t.toLowerCase());
-    // Exact Tagalog match — highest (user typed the actual word)
     if(tl===ql) score=6;
-    // Tagalog starts with query — high (typing Tagalog prefix)
-    else if(tl.startsWith(ql)) score=5;
-    // Alternative exact match
-    else if(alts.some(a=>a===ql)) score=5;
-    // Alternative starts with
-    else if(alts.some(a=>a.startsWith(ql))) score=4;
-    // ── Translation whole-word match ── scored ABOVE partial Tagalog match
-    // This ensures "big"→Malaki beats "big" inside "Bigo"
-    else if(wordMatch(en,ql)||wordMatch(es,ql)||wordMatch(de,ql)) score=4;
-    // Partial Tagalog contains — kept for prefix searches like "mali"→Malaki
-    // but BELOW translation match so English searches find the right word first
+    else if(transStartsWith(w,ql)) score=5;
+    else if(tl.startsWith(ql)) score=4;
+    else if(alts.some(a=>a===ql)) score=4;
+    else if(wordMatch(en,ql)||wordMatch(es,ql)||wordMatch(de,ql)) score=3;
+    else if(alts.some(a=>a.startsWith(ql))) score=3;
     else if(tl.includes(ql)) score=2;
     else if(alts.some(a=>a.includes(ql))) score=2;
-    // Definition whole-word match
     else if(wordMatch(def,ql)) score=1;
-    // Search terms — lowest (opposites, tangential words)
     else if(terms.some(t=>t===ql||wordMatch(t,ql))) score=1;
-    if(score>0) scored.push({...w,_score:score});
+    if(score>0)scored.push({...w,_score:score});
   }
   return scored.sort((a,b)=>b._score-a._score);
 }
