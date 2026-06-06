@@ -5,6 +5,7 @@ import {
   saveLitWord, deleteLitWord,
   savePhrase, deletePhrase,
   savePilipinasEntry, deletePilipinasEntry,
+  fetchSiteContent, saveSiteContent,
 } from "./supabase.js";
 
 const PWD = "30thofMay2026#DuduxBubu";
@@ -17,6 +18,7 @@ const TABS = [
   { key:"lit", label:"Lost in Translation", icon:"✨", color: TEAL },
   { key:"phrases", label:"Tagalog 101", icon:"💬", color: GOLD },
   { key:"pilipinas", label:"Pilipinas", icon:"🇵🇭", color: AMBER },
+  { key:"content", label:"Site Content", icon:"✏️", color: "#5B4BA8" },
 ];
 
 // ── SHARED UI ─────────────────────────────────────────────
@@ -633,6 +635,103 @@ function PilipinasPanel() {
   );
 }
 
+
+// ── CONTENT PANEL ─────────────────────────────────────────
+
+const CONTENT_SECTIONS = {
+  "Homepage": [
+    { key:"homepage_tagline", label:"Hero Tagline", hint:"The line under 'Maligayang pagdating'" },
+    { key:"homepage_quote", label:"Quote Strip Text", hint:"The quote in the banner above the footer" },
+    { key:"homepage_quote_author", label:"Quote Author", hint:"Attribution line under the quote" },
+    { key:"footer_tagline", label:"Footer Tagline", hint:"Small text in the footer" },
+    { key:"footer_kofi_message", label:"Footer Ko-fi Message", hint:"The message above the Ko-fi button" },
+  ],
+  "About Page": [
+    { key:"about_founder_bio", label:"Founder Bio", hint:"The paragraph in the founder card" },
+    { key:"about_kwento_1", label:"The Story — Paragraph 1", hint:"First paragraph of Ang Kwento" },
+    { key:"about_kwento_2", label:"The Story — Paragraph 2", hint:"Second paragraph of Ang Kwento" },
+    { key:"about_kwento_3", label:"The Story — Paragraph 3", hint:"Third paragraph of Ang Kwento" },
+    { key:"about_kwento_4", label:"The Story — Paragraph 4", hint:"Fourth paragraph of Ang Kwento" },
+    { key:"about_booking_description", label:"Book a Lesson — Description", hint:"Text in the pink booking card" },
+  ],
+};
+
+function ContentPanel() {
+  const [values, setValues] = useState({});
+  const [saved, setSaved] = useState({});
+  const [saving, setSaving] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [msg, setMsg] = useState("");
+
+  useEffect(() => {
+    async function load() {
+      setLoading(true);
+      const { data } = await supabase.from("site_content").select("*");
+      if (data) {
+        const obj = {};
+        data.forEach(item => { obj[item.key] = item.value; });
+        setValues(obj);
+      }
+      setLoading(false);
+    }
+    load();
+  }, []);
+
+  async function handleSave(key) {
+    setSaving(p => ({ ...p, [key]: true }));
+    try {
+      await saveSiteContent(key, values[key] || "");
+      setSaved(p => ({ ...p, [key]: true }));
+      setTimeout(() => setSaved(p => ({ ...p, [key]: false })), 2500);
+    } catch(e) {
+      setMsg("❌ Error saving. Please try again.");
+      setTimeout(() => setMsg(""), 3000);
+    }
+    setSaving(p => ({ ...p, [key]: false }));
+  }
+
+  if (loading) return <p style={{ color:MID, fontSize:"14px", padding:"16px 0" }}>Loading content...</p>;
+
+  return (
+    <div>
+      <Msg msg={msg}/>
+      <p style={{ fontSize:"14px", color:MID, marginBottom:"24px", lineHeight:1.6 }}>
+        Edit any text on the website here — no code needed. Changes go live immediately after saving.
+      </p>
+      {Object.entries(CONTENT_SECTIONS).map(([section, fields]) => (
+        <div key={section} style={{ marginBottom:"32px" }}>
+          <h3 style={{ fontFamily:"'Baloo 2',cursive", fontSize:"16px", fontWeight:700, color:"#5B4BA8", marginBottom:"16px", display:"flex", alignItems:"center", gap:"8px" }}>
+            <span>✏️</span><span>{section}</span>
+          </h3>
+          <div style={{ display:"flex", flexDirection:"column", gap:"16px" }}>
+            {fields.map(({ key, label, hint }) => (
+              <div key={key} style={{ background:"#F8F4EE", borderRadius:"14px", padding:"18px", border:`1px solid ${BORDER}` }}>
+                <div style={{ marginBottom:"6px" }}>
+                  <label style={{ fontSize:"12px", fontWeight:700, color:DARK, textTransform:"uppercase", letterSpacing:"0.5px" }}>{label}</label>
+                  {hint && <p style={{ fontSize:"11px", color:MID, marginTop:"2px", fontStyle:"italic" }}>{hint}</p>}
+                </div>
+                <textarea
+                  value={values[key] || ""}
+                  onChange={e => setValues(p => ({ ...p, [key]: e.target.value }))}
+                  rows={key.includes("kwento") || key.includes("bio") || key.includes("description") ? 4 : 2}
+                  style={{ width:"100%", padding:"10px 12px", borderRadius:"10px", border:`1px solid ${BORDER}`, fontFamily:"'Nunito',sans-serif", fontSize:"14px", color:DARK, resize:"vertical", outline:"none", boxSizing:"border-box", background:"white", marginBottom:"10px" }}
+                />
+                <button
+                  onClick={() => handleSave(key)}
+                  disabled={saving[key]}
+                  style={{ background: saved[key] ? GREEN : "#5B4BA8", color:"white", border:"none", borderRadius:"100px", padding:"7px 20px", fontFamily:"'Nunito',sans-serif", fontSize:"13px", fontWeight:700, cursor:saving[key]?"not-allowed":"pointer", transition:"background 0.2s" }}
+                >
+                  {saving[key] ? "Saving..." : saved[key] ? "✅ Saved!" : "💾 Save"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 // ── MAIN ADMIN COMPONENT ──────────────────────────────────
 
 export default function AdminPanel() {
@@ -727,6 +826,7 @@ export default function AdminPanel() {
           {activeTab==="lit" && <LitPanel/>}
           {activeTab==="phrases" && <PhrasesPanel/>}
           {activeTab==="pilipinas" && <PilipinasPanel/>}
+          {activeTab==="content" && <ContentPanel/>}
         </div>
       </div>
     </div>

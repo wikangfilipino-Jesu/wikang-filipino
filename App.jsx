@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { fetchDictionaryWords, fetchLitWords, fetchPhrases, fetchPilipinasEntries } from "./supabase.js";
+import { fetchDictionaryWords, fetchLitWords, fetchPhrases, fetchPilipinasEntries, fetchSiteContent } from "./supabase.js";
 import AdminPanel from "./Admin.jsx";
 
 const TEAL="#20B28C",GOLD="#FCD116",GOLD_DARK="#A07C00",AMBER="#CD853F",AMBER_LIGHT="#E8A85A",BROWN="#6B3510",BROWN2="#4A2208",NAVY="#0D1F3C",NAVY2="#162840",NAVY_LIGHT="#1E2E50",CREAM="#FFFBF3",DARK="#1A1006",MID="#6B4A2A",LIGHT_BORDER="#EDE0CC";
@@ -63,11 +63,12 @@ function detectLang(q){const ql=q.toLowerCase();if(SP_MARKS.some(m=>ql.includes(
 function searchDict(q,wordList){
   const ql=q.toLowerCase().trim();
   if(!ql)return[];
-  // Whole word match — "fast" should not match "breakfast" or "fasting"
+  // Whole word boundary check — "fast" should not match "breakfast"
   const wordMatch=(text,term)=>{
-    const escaped=term.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
-    const re=new RegExp("(^|[\\s,/·])" + escaped + "($|[\\s,/·])", "i");
-    return re.test(text);
+    try{
+      const escaped=term.replace(/[.*+?^${}()|[\]\]/g,"\$&");
+      return new RegExp("(?:^|[\s,/·])" + escaped + "(?:$|[\s,/·])", "i").test(text);
+    }catch(e){ return text.toLowerCase().includes(term); }
   };
   const scored=[];
   for(const w of(wordList||DICT_WORDS)){
@@ -79,18 +80,24 @@ function searchDict(q,wordList){
     const de=(w.de?.translation||"").toLowerCase();
     const def=(w.definition||"").toLowerCase();
     const terms=(w.searchTerms||[]).map(t=>t.toLowerCase());
-    // Tagalog exact match — highest
-    if(tl===ql) score=5;
-    else if(tl.startsWith(ql)) score=4;
-    else if(tl.includes(ql)) score=3;
+    // Exact Tagalog match — highest (user typed the actual word)
+    if(tl===ql) score=6;
+    // Tagalog starts with query — high (typing Tagalog prefix)
+    else if(tl.startsWith(ql)) score=5;
     // Alternative exact match
-    else if(alts.some(a=>a===ql)) score=4;
-    else if(alts.some(a=>a.includes(ql))) score=3;
-    // Translation whole word match — medium priority
-    else if(wordMatch(en,ql)||wordMatch(es,ql)||wordMatch(de,ql)) score=2;
-    // Definition whole word match
+    else if(alts.some(a=>a===ql)) score=5;
+    // Alternative starts with
+    else if(alts.some(a=>a.startsWith(ql))) score=4;
+    // ── Translation whole-word match ── scored ABOVE partial Tagalog match
+    // This ensures "big"→Malaki beats "big" inside "Bigo"
+    else if(wordMatch(en,ql)||wordMatch(es,ql)||wordMatch(de,ql)) score=4;
+    // Partial Tagalog contains — kept for prefix searches like "mali"→Malaki
+    // but BELOW translation match so English searches find the right word first
+    else if(tl.includes(ql)) score=2;
+    else if(alts.some(a=>a.includes(ql))) score=2;
+    // Definition whole-word match
     else if(wordMatch(def,ql)) score=1;
-    // Search terms whole word match only
+    // Search terms — lowest (opposites, tangential words)
     else if(terms.some(t=>t===ql||wordMatch(t,ql))) score=1;
     if(score>0) scored.push({...w,_score:score});
   }
@@ -110,7 +117,8 @@ function Nav({current,navigate}){
   );
 }
 
-function HomePage({navigate,litWords}){
+function HomePage({navigate,litWords,content}){
+  const c=(key,fb)=>content?.[key]||fb;
   const[q,setQ]=useState(""); const[hovS,setHovS]=useState(null);
   const sections=[
     {id:"dictionary",title:"Dictionary",tagalog:"Diksyonaryo",description:"Search thousands of Tagalog words with translations in English, Spanish, and German.",color:"#20B28C",bg:"#EAF7F3",icon:"📖",entries:"2,400+ words"},
@@ -126,7 +134,7 @@ function HomePage({navigate,litWords}){
         <div style={{position:"relative",maxWidth:"700px",margin:"0 auto"}}>
           <div style={{display:"inline-block",background:"rgba(252,209,22,0.2)",border:"1px solid rgba(252,209,22,0.4)",borderRadius:"100px",padding:"6px 16px",marginBottom:"24px"}}><span style={{fontFamily:"'Nunito', sans-serif",fontSize:"13px",fontWeight:700,color:"#8B6914",letterSpacing:"0.5px"}}>🌺 Filipino Language & Culture</span></div>
           <h1 style={{fontFamily:"'Baloo 2', cursive",fontSize:"clamp(52px, 8vw, 88px)",fontWeight:800,lineHeight:1.05,marginBottom:"16px",color:DARK}}>Maligayang<br/><span style={{color:"#CD853F"}}>pagdating.</span></h1>
-          <p style={{fontFamily:"'Nunito', sans-serif",fontSize:"18px",color:"#5C3D1E",marginBottom:"8px",lineHeight:1.6}}>Your warm guide to Filipino language and culture.</p>
+          <p style={{fontFamily:"'Nunito', sans-serif",fontSize:"18px",color:"#5C3D1E",marginBottom:"8px",lineHeight:1.6}}>{c("homepage_tagline","Your warm guide to Filipino language and culture.")}</p>
           <p style={{fontFamily:"'Nunito', sans-serif",fontSize:"14px",color:"#8B6D50",marginBottom:"36px"}}>In English · Español · Deutsch</p>
           <div style={{display:"flex",maxWidth:"540px",margin:"0 auto",background:"white",borderRadius:"100px",boxShadow:"0 4px 24px rgba(92,61,30,0.12)",overflow:"hidden",border:"1px solid #F0E0CC"}}>
             <span style={{padding:"0 16px 0 20px",display:"flex",alignItems:"center",fontSize:"18px"}}>🔍</span>
@@ -161,13 +169,13 @@ function HomePage({navigate,litWords}){
         </div>
       </section>
       <section style={{background:"#FFF8EE",borderTop:`1px solid ${LIGHT_BORDER}`,borderBottom:`1px solid ${LIGHT_BORDER}`,padding:"48px 40px",textAlign:"center"}}>
-        <p style={{fontFamily:"'Playfair Display', serif",fontSize:"20px",fontStyle:"italic",color:"#3D2010",maxWidth:"640px",margin:"0 auto 16px",lineHeight:1.65}}>"Filipino is more than a language — it's a feeling. Wikang Filipino exists to share that feeling with the world."</p>
-        <p style={{fontFamily:"'Nunito', sans-serif",fontSize:"13px",color:"#7A5030",fontWeight:700}}>— Jesu, Founder of Wikang Filipino</p>
+        <p style={{fontFamily:"'Playfair Display', serif",fontSize:"20px",fontStyle:"italic",color:"#3D2010",maxWidth:"640px",margin:"0 auto 16px",lineHeight:1.65}}>"{c("homepage_quote","Filipino is more than a language — it's a feeling. Wikang Filipino exists to share that feeling with the world.")}"</p>
+        <p style={{fontFamily:"'Nunito', sans-serif",fontSize:"13px",color:"#7A5030",fontWeight:700}}>{c("homepage_quote_author","— Jesu, Founder of Wikang Filipino")}</p>
       </section>
       <footer style={{padding:"40px",textAlign:"center",background:"#FFF3E0",borderTop:`1px solid ${LIGHT_BORDER}`}}>
         <div style={{display:"flex",alignItems:"center",justifyContent:"center",gap:"8px",marginBottom:"10px"}}><span style={{fontSize:"18px"}}>🇵🇭</span><span style={{fontFamily:"'Baloo 2', cursive",fontWeight:800,fontSize:"18px",color:DARK}}>Wikang Filipino</span></div>
-        <p style={{fontFamily:"'Nunito', sans-serif",fontSize:"13px",color:"#5C3D1E",marginBottom:"12px",fontWeight:600}}>Made with love for the Filipino language and its people. · wikangfilipino.com</p>
-        <p style={{fontFamily:"'Nunito', sans-serif",fontSize:"13px",color:"#7A5030",marginBottom:"20px",maxWidth:"420px",margin:"0 auto 20px",lineHeight:1.6}}>Wikang Filipino is completely free — no ads, no paywalls, ever. If it has brought you value, any contribution helps keep it alive and growing.</p>
+        <p style={{fontFamily:"'Nunito', sans-serif",fontSize:"13px",color:"#5C3D1E",marginBottom:"12px",fontWeight:600}}>{c("footer_tagline","Made with love for the Filipino language and its people. · wikangfilipino.com")}</p>
+        <p style={{fontFamily:"'Nunito', sans-serif",fontSize:"13px",color:"#7A5030",marginBottom:"20px",maxWidth:"420px",margin:"0 auto 20px",lineHeight:1.6}}>{c("footer_kofi_message","Wikang Filipino is completely free — no ads, no paywalls, ever. If it has brought you value, any contribution helps keep it alive and growing.")}</p>
         <a href="https://ko-fi.com/wikangfilipino" target="_blank" rel="noopener noreferrer" style={{display:"inline-flex",alignItems:"center",gap:"8px",background:"transparent",border:"1.5px solid #A0621A",color:"#A0621A",borderRadius:"100px",padding:"10px 24px",fontFamily:"'Nunito', sans-serif",fontWeight:700,fontSize:"13px",textDecoration:"none"}}>☕ Support on Ko-fi</a>
         <p style={{fontFamily:"'Nunito', sans-serif",fontSize:"11px",color:"#A08060",marginTop:"24px",fontWeight:600}}>© 2026 Wikang Filipino · All rights reserved</p>
       </footer>
@@ -382,7 +390,8 @@ function PilipinasPage({navigate,entries}){
   );
 }
 
-function AboutPage({navigate}){
+function AboutPage({navigate,content}){
+  const c=(key,fb)=>content?.[key]||fb;
   const[hovV,setHovV]=useState(null);
   return(
     <div style={{fontFamily:"'Nunito', sans-serif",background:CREAM,minHeight:"100vh",color:DARK}}>
@@ -402,13 +411,18 @@ function AboutPage({navigate}){
           <div style={{width:"80px",height:"80px",borderRadius:"50%",background:"linear-gradient(135deg, #20B28C, #0E7A60)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"36px",flexShrink:0,border:"3px solid rgba(32,178,140,0.3)"}}>🇵🇭</div>
           <div style={{position:"relative",flex:1}}>
             <div style={{display:"flex",alignItems:"center",gap:"10px",marginBottom:"6px"}}><h2 style={{fontFamily:"'Baloo 2', cursive",fontSize:"24px",fontWeight:800,color:"white"}}>Hi, I'm Jesu.</h2><span style={{background:"rgba(32,178,140,0.15)",color:TEAL,borderRadius:"100px",padding:"2px 12px",fontSize:"11px",fontWeight:700,border:"1px solid rgba(32,178,140,0.25)"}}>Founder</span></div>
-            <p style={{fontFamily:"'Nunito', sans-serif",fontSize:"14px",color:"rgba(255,255,255,0.65)",lineHeight:1.7,marginBottom:"16px"}}>I'm a native Tagalog and English speaker, advanced in Spanish, and currently learning German and Czech. I'm a professional Tagalog tutor — and I built Wikang Filipino because I wanted a place that treated Filipino language and culture with the depth and warmth it deserves.</p>
+            <p style={{fontFamily:"'Nunito', sans-serif",fontSize:"14px",color:"rgba(255,255,255,0.65)",lineHeight:1.7,marginBottom:"16px"}}>{c("about_founder_bio","I'm a native Tagalog and English speaker, advanced in Spanish, and currently learning German and Czech. I'm a professional Tagalog tutor — and I built Wikang Filipino because I wanted a place that treated Filipino language and culture with the depth and warmth it deserves.")}</p>
             <div style={{display:"flex",gap:"10px",flexWrap:"wrap"}}>{["🇵🇭 Tagalog","🇺🇸 English","🇪🇸 Español C1","🇩🇪 Deutsch (learning)","🇨🇿 Czech (learning)"].map(l=>(<span key={l} style={{background:"rgba(255,255,255,0.08)",border:"1px solid rgba(255,255,255,0.12)",borderRadius:"100px",padding:"4px 12px",fontSize:"12px",fontWeight:600,color:"rgba(255,255,255,0.7)"}}>{l}</span>))}</div>
           </div>
         </div>
         <div style={{background:"white",borderRadius:"24px",padding:"36px",marginBottom:"24px",border:`1px solid ${LIGHT_BORDER}`}}>
           <div style={{display:"flex",alignItems:"center",gap:"8px",marginBottom:"18px"}}><span style={{fontSize:"20px"}}>✍️</span><h2 style={{fontFamily:"'Baloo 2', cursive",fontSize:"20px",fontWeight:700,color:DARK}}>Ang Kwento · The Story</h2></div>
-          {["Filipino is one of the most expressive, warmth-filled languages in the world — and yet most resources treat it like a utility. A dry list of vocabulary. A grammar table. A translation tool.","I wanted something different. A place that explains not just what a word means, but what it feels like. Why Filipinos have a word for the urge to squeeze something cute (gigil) but saying goodbye always implies a kind of permanence.","Wikang Filipino was built for curious people — learners, travelers, the Filipino diaspora, and anyone who has ever met a Filipino and wanted to understand the culture behind the smile.","This is a passion project. It will always be free. And it will keep growing as long as there are stories worth telling."].map((t,i)=>(<p key={i} style={{fontFamily:"'Nunito', sans-serif",fontSize:"15px",color:"#3D2010",lineHeight:1.8,marginBottom:i<3?"14px":0}}>{t}</p>))}
+          {[
+  c("about_kwento_1","Filipino is one of the most expressive, warmth-filled languages in the world — and yet most resources treat it like a utility. A dry list of vocabulary. A grammar table. A translation tool."),
+  c("about_kwento_2","I wanted something different. A place that explains not just what a word means, but what it feels like. Why Filipinos have a word for the urge to squeeze something cute (gigil) but saying goodbye always implies a kind of permanence."),
+  c("about_kwento_3","Wikang Filipino was built for curious people — learners, travelers, the Filipino diaspora, and anyone who has ever met a Filipino and wanted to understand the culture behind the smile."),
+  c("about_kwento_4","This is a passion project. It will always be free. And it will keep growing as long as there are stories worth telling."),
+].map((t,i)=>(<p key={i} style={{fontFamily:"'Nunito', sans-serif",fontSize:"15px",color:"#3D2010",lineHeight:1.8,marginBottom:i<3?"14px":0}}>{t}</p>))}
         </div>
 
         <div style={{background:"linear-gradient(135deg, #FFE0DC 0%, #FFECEB 100%)",borderRadius:"24px",padding:"40px",marginBottom:"24px",border:"1px solid rgba(190,70,60,0.3)",boxShadow:"0 4px 24px rgba(180,70,60,0.12)",position:"relative",overflow:"hidden"}}>
@@ -417,7 +431,7 @@ function AboutPage({navigate}){
           <div style={{position:"relative"}}>
             <div style={{display:"inline-flex",alignItems:"center",gap:"6px",background:"rgba(190,70,60,0.12)",border:"1px solid rgba(190,70,60,0.25)",borderRadius:"100px",padding:"5px 14px",marginBottom:"20px"}}><span style={{fontSize:"11px"}}>🎓</span><span style={{fontFamily:"'Nunito', sans-serif",fontSize:"11px",fontWeight:700,color:"#B85048",letterSpacing:"1px",textTransform:"uppercase"}}>Private Tutoring · 1-on-1 Lessons</span></div>
             <h2 style={{fontFamily:"'Baloo 2', cursive",fontSize:"clamp(26px,4vw,38px)",fontWeight:800,color:DARK,lineHeight:1.1,marginBottom:"12px"}}>Want to learn Tagalog<br/><span style={{color:"#B85048"}}>with a native speaker?</span></h2>
-            <p style={{fontFamily:"'Nunito', sans-serif",fontSize:"15px",color:MID,lineHeight:1.7,marginBottom:"28px",maxWidth:"480px"}}>I offer personalised 1-on-1 Tagalog lessons online — tailored to your level, your goals, and your pace. Whether you're a complete beginner or reconnecting with your heritage, we'll find the right approach for you.</p>
+            <p style={{fontFamily:"'Nunito', sans-serif",fontSize:"15px",color:MID,lineHeight:1.7,marginBottom:"28px",maxWidth:"480px"}}>{c("about_booking_description","I offer personalised 1-on-1 Tagalog lessons online — tailored to your level, your goals, and your pace. Whether you're a complete beginner or reconnecting with your heritage, we'll find the right approach for you.")}</p>
             <div style={{display:"flex",gap:"20px",flexWrap:"wrap",marginBottom:"28px"}}>
               {[{icon:"⭐",label:"5.0 Rating",sub:"Perfect score"},{icon:"🏆",label:"Top 9 Tutor",sub:"of ~740 on Preply"},{icon:"🇵🇭",label:"Native Speaker",sub:"Tagalog & English"},{icon:"🌍",label:"Taught Students",sub:"from 30+ countries"}].map(({icon,label,sub})=>(<div key={label} style={{display:"flex",alignItems:"center",gap:"10px"}}>
                 <div style={{width:"40px",height:"40px",background:"rgba(190,70,60,0.1)",border:"1px solid rgba(190,70,60,0.2)",borderRadius:"10px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"18px",flexShrink:0}}>{icon}</div>
@@ -452,18 +466,20 @@ export default function WikangFilipinoApp(){
   const[dbLit,setDbLit]=useState(null);
   const[dbPhrases,setDbPhrases]=useState(null);
   const[dbPilipinas,setDbPilipinas]=useState(null);
+  const[siteContent,setSiteContent]=useState({});
 
   useEffect(()=>{
     const l=document.createElement("link");
     l.href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;600;700;800&family=Playfair+Display:ital,wght@0,400;0,700;1,400;1,700&family=Nunito:wght@300;400;500;600;700&display=swap";
     l.rel="stylesheet";
     document.head.appendChild(l);
-    Promise.all([fetchDictionaryWords(),fetchLitWords(),fetchPhrases(),fetchPilipinasEntries()])
-      .then(([words,lit,phrases,pilipinas])=>{
+    Promise.all([fetchDictionaryWords(),fetchLitWords(),fetchPhrases(),fetchPilipinasEntries(),fetchSiteContent()])
+      .then(([words,lit,phrases,pilipinas,sc])=>{
         if(words)setDbWords(words);
         if(lit)setDbLit(lit);
         if(phrases)setDbPhrases(phrases);
         if(pilipinas)setDbPilipinas(pilipinas);
+        if(sc)setSiteContent(sc);
       }).catch(()=>{});
     return()=>document.head.removeChild(l);
   },[]);
@@ -477,12 +493,12 @@ export default function WikangFilipinoApp(){
 
   return(
     <div>
-      {page==="home"&&<HomePage navigate={navigate} litWords={activeLit}/>}
+      {page==="home"&&<HomePage navigate={navigate} litWords={activeLit} content={siteContent}/>}
       {page==="dictionary"&&<DictionaryPage navigate={navigate} initialQuery={params.query||""} initialWord={params.word||null} words={activeWords}/>}
       {page==="lost"&&<LostInTranslationPage navigate={navigate} initialWord={params.word||null} words={activeLit}/>}
       {page==="tagalog101"&&<Tagalog101Page navigate={navigate} phrases={activePhrases}/>}
       {page==="pilipinas"&&<PilipinasPage navigate={navigate} entries={activePilipinas}/>}
-      {page==="about"&&<AboutPage navigate={navigate}/>}
+      {page==="about"&&<AboutPage navigate={navigate} content={siteContent}/>}
       {page==="admin"&&<AdminPanel/>}
     </div>
   );

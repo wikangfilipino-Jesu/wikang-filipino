@@ -150,3 +150,21 @@ export async function deletePilipinasEntry(id) {
   const { error } = await supabase.from('pilipinas_entries').delete().eq('id', id)
   if (error) throw error
 }
+
+// ── SITE CONTENT ──────────────────────────────────────────
+
+export async function fetchSiteContent() {
+  const { data, error } = await supabase.from('site_content').select('*')
+  if (error) { console.error('Content fetch error:', error); return null; }
+  const obj = {};
+  data.forEach(item => { obj[item.key] = item.value; });
+  return obj;
+}
+
+export async function saveSiteContent(key, value) {
+  const { error } = await supabase
+    .from('site_content')
+    .update({ value, updated_at: new Date().toISOString() })
+    .eq('key', key)
+  if (error) throw error
+}
