@@ -63,6 +63,12 @@ function detectLang(q){const ql=q.toLowerCase();if(SP_MARKS.some(m=>ql.includes(
 function searchDict(q,wordList){
   const ql=q.toLowerCase().trim();
   if(!ql)return[];
+  // Whole word match — "fast" should not match "breakfast" or "fasting"
+  const wordMatch=(text,term)=>{
+    const escaped=term.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+    const re=new RegExp("(^|[\\s,/·])" + escaped + "($|[\\s,/·])", "i");
+    return re.test(text);
+  };
   const scored=[];
   for(const w of(wordList||DICT_WORDS)){
     let score=0;
@@ -77,15 +83,15 @@ function searchDict(q,wordList){
     if(tl===ql) score=5;
     else if(tl.startsWith(ql)) score=4;
     else if(tl.includes(ql)) score=3;
-    // Alternative match
+    // Alternative exact match
     else if(alts.some(a=>a===ql)) score=4;
     else if(alts.some(a=>a.includes(ql))) score=3;
-    // Translation match — medium priority
-    else if(en.includes(ql)||es.includes(ql)||de.includes(ql)) score=2;
-    // Definition match
-    else if(def.includes(ql)) score=1;
-    // Search terms only — lowest (likely opposite or tangential)
-    else if(terms.some(t=>t===ql||t.includes(ql))) score=1;
+    // Translation whole word match — medium priority
+    else if(wordMatch(en,ql)||wordMatch(es,ql)||wordMatch(de,ql)) score=2;
+    // Definition whole word match
+    else if(wordMatch(def,ql)) score=1;
+    // Search terms whole word match only
+    else if(terms.some(t=>t===ql||wordMatch(t,ql))) score=1;
     if(score>0) scored.push({...w,_score:score});
   }
   return scored.sort((a,b)=>b._score-a._score);
