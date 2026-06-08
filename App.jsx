@@ -64,16 +64,7 @@ function searchDict(q,wordList){
   const ql=q.toLowerCase().trim();
   if(!ql)return[];
 
-  // ── LANGUAGE DETECTION ──────────────────────────────────
-  // Common Tagalog prefixes and patterns
-  const tagalogPrefixes=["ma","mag","nag","na","ka","pa","um","in","i","pag","maka","naka","maki","makipag","napaka","pinaka","pina","mang","nang","gang"];
-  const tagalogWords=["ako","ikaw","siya","kami","kayo","sila","ang","ng","sa","at","ay","na","nang","kung","pero","dahil","kasi","ito","iyon","dito","doon","tayo"];
-  const looksLikeTagalog=
-    tagalogWords.includes(ql)||
-    tagalogPrefixes.some(p=>ql.startsWith(p)&&ql.length>p.length+1)||
-    /[ng]{2}|[lrdn]g$|ng$|^[aeiou]/.test(ql)&&ql.length>3;
-
-  // ── WORD BOUNDARY HELPER ─────────────────────────────────
+  // ── WORD BOUNDARY MATCH ──────────────────────────────────
   const wordMatch=(text,term)=>{
     const t=text.toLowerCase();
     let i=t.indexOf(term);
@@ -86,50 +77,51 @@ function searchDict(q,wordList){
     return false;
   };
 
-  const transStartsWith=(w,q2)=>
-    (w.en?.translation||"").toLowerCase().startsWith(q2)||
-    (w.es?.translation||"").toLowerCase().startsWith(q2)||
-    (w.de?.translation||"").toLowerCase().startsWith(q2);
+  // ── HELPERS ──────────────────────────────────────────────
+  const exactTagalog=(w)=>w.tagalog.toLowerCase()===ql;
+  const altExact=(w)=>(w.alternatives||[]).some(a=>a.toLowerCase()===ql);
+  const transStartsWith=(w)=>
+    (w.en?.translation||"").toLowerCase().startsWith(ql)||
+    (w.es?.translation||"").toLowerCase().startsWith(ql)||
+    (w.de?.translation||"").toLowerCase().startsWith(ql);
+  const transContains=(w)=>
+    wordMatch(w.en?.translation||"",ql)||
+    wordMatch(w.es?.translation||"",ql)||
+    wordMatch(w.de?.translation||"",ql);
+  const defContains=(w)=>wordMatch(w.definition||"",ql);
+  const termsMatch=(w)=>(w.searchTerms||[]).some(t=>t.toLowerCase()===ql||wordMatch(t,ql));
+  const tagalogStartsWith=(w)=>w.tagalog.toLowerCase().startsWith(ql);
+  const altStartsWith=(w)=>(w.alternatives||[]).some(a=>a.toLowerCase().startsWith(ql));
 
-  const transContains=(w,q2)=>
-    wordMatch(w.en?.translation||"",q2)||
-    wordMatch(w.es?.translation||"",q2)||
-    wordMatch(w.de?.translation||"",q2);
+  // Tagalog substring match — only allowed if query is long enough (5+ chars)
+  // Short queries like "alam","wala","hindi" cause too many false matches
+  const tagalogContains=(w)=>ql.length>=5&&w.tagalog.toLowerCase().includes(ql);
 
+  // ── SCORE EVERY WORD ─────────────────────────────────────
   const scored=[];
   for(const w of(wordList||DICT_WORDS)){
     let score=0;
-    const tl=w.tagalog.toLowerCase();
-    const alts=(w.alternatives||[]).map(a=>a.toLowerCase());
-    const def=(w.definition||"").toLowerCase();
-    const terms=(w.searchTerms||[]).map(t=>t.toLowerCase());
 
-    if(looksLikeTagalog){
-      // ── TAGALOG SEARCH MODE ──────────────────────────────
-      // Match against Tagalog word, alternatives, definition
-      if(tl===ql) score=6;
-      else if(tl.startsWith(ql)) score=5;
-      else if(alts.some(a=>a===ql)) score=5;
-      else if(alts.some(a=>a.startsWith(ql))) score=4;
-      else if(transStartsWith(w,ql)) score=4;
-      else if(tl.includes(ql)) score=3;
-      else if(alts.some(a=>a.includes(ql))) score=2;
-      else if(transContains(w,ql)) score=2;
-      else if(wordMatch(def,ql)) score=1;
-      else if(terms.some(t=>t===ql||wordMatch(t,ql))) score=1;
-    } else {
-      // ── ENGLISH / SPANISH / GERMAN SEARCH MODE ───────────
-      // Only match against translations, definition, search terms
-      // NEVER against Tagalog word spelling
-      if(transStartsWith(w,ql)) score=5;
-      else if(transContains(w,ql)) score=3;
-      else if(wordMatch(def,ql)) score=2;
-      else if(terms.some(t=>t===ql||wordMatch(t,ql))) score=1;
-    }
+    if(exactTagalog(w))            score=7; // "wala"→Wala, "hindi"→Hindi — always wins
+    else if(altExact(w))           score=6; // exact alternative match
+    else if(transStartsWith(w))    score=5; // "big"→"Big, Large"→Malaki
+    else if(tagalogStartsWith(w))  score=4; // "mag"→Maganda etc
+    else if(altStartsWith(w))      score=4;
+    else if(transContains(w))      score=3; // translation contains word
+    else if(defContains(w))        score=2; // definition contains word
+    else if(termsMatch(w))         score=1; // search terms
+    else if(tagalogContains(w))    score=1; // substring in Tagalog — only 5+ chars
 
     if(score>0)scored.push({...w,_score:score});
   }
-  return scored.sort((a,b)=>b._score-a._score);
+
+  // ── FILTER OUT WEAK MATCHES if strong ones exist ─────────
+  const maxScore=scored.length>0?Math.max(...scored.map(s=>s._score)):0;
+  const filtered=maxScore>=3
+    ? scored.filter(s=>s._score>=2)  // if good matches exist, hide score-1 stragglers
+    : scored;                         // if only weak matches, show them all
+
+  return filtered.sort((a,b)=>b._score-a._score);
 }
 
 function Nav({current,navigate}){
