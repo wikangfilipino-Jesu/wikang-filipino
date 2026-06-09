@@ -480,7 +480,12 @@ function AboutPage({navigate,content}){
 }
 
 export default function WikangFilipinoApp(){
-  const[page,setPage]=useState(()=>window.location.hash==="#admin"?"admin":"home");
+  const[page,setPage]=useState(()=>{
+    if(window.location.hash==="#admin")return"admin";
+    const path=window.location.pathname.replace(/^\//,"").toLowerCase();
+    const valid=["dictionary","lost","tagalog101","pilipinas","about"];
+    return valid.includes(path)?path:"home";
+  });
   const[params,setParams]=useState({});
   const[dbWords,setDbWords]=useState(null);
   const[dbLit,setDbLit]=useState(null);
@@ -501,10 +506,35 @@ export default function WikangFilipinoApp(){
         if(pilipinas)setDbPilipinas(pilipinas);
         if(sc)setSiteContent(sc);
       }).catch(()=>{});
-    return()=>document.head.removeChild(l);
+    // Set initial history state so back button works from first page
+    window.history.replaceState({page,params:{}},"",window.location.pathname);
+    // Handle browser back/forward buttons
+    function handlePop(e){
+      if(e.state?.page){
+        setPage(e.state.page);
+        setParams(e.state.params||{});
+        window.scrollTo({top:0,behavior:"smooth"});
+      } else {
+        setPage("home");
+        setParams({});
+      }
+    }
+    window.addEventListener("popstate",handlePop);
+    return()=>{
+      document.head.removeChild(l);
+      window.removeEventListener("popstate",handlePop);
+    };
   },[]);
 
-  function navigate(p,ps={}){setPage(p);setParams(ps);window.scrollTo({top:0,behavior:"smooth"});}
+  function navigate(p,ps={}){
+    if(p!=="admin"){
+      const url=p==="home"?"/":"/"+p;
+      window.history.pushState({page:p,params:ps},"",url);
+    }
+    setPage(p);
+    setParams(ps);
+    window.scrollTo({top:0,behavior:"smooth"});
+  }
 
   const activeWords=dbWords||DICT_WORDS;
   const activeLit=dbLit||LIT_WORDS;
